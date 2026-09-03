@@ -22,17 +22,44 @@
 ## 安装
 
 ```bash
-# 1. 克隆后，复制到 profile 依赖并挂载
-git clone <this-repo>
-dsh plugin --profile web add ./dsh-client-prts-suite
-# 2. 重启 dsh web
+# 方式 1：直接从 GitHub 安装
+dsh plugin --profile web add github:lzx1523/prts-suite
+# 方式 2：克隆后本地安装
+git clone https://github.com/lzx1523/prts-suite.git
+dsh plugin --profile web add ./prts-suite
+# 无论哪种方式，之后重启 dsh web 生效
 dsh web
-# 3. 打开 http://127.0.0.1:3080
 ```
 
-> 素材（手形动画、开机动画帧、立绘）需要通过插件内的本地路径加载；锁屏壁纸由
-> host 端路由 `/prts-assets/lockscreen.webp` 流式提供，路径在 `lib/index.js` 的
-> `LOCK_FILE` 修改为你的文件（或设置环境变量 `PRTS_LOCK_FILE`）。
+> 锁屏壁纸由 host 端路由 `/prts-assets/lockscreen.webp` 流式提供，路径在 `lib/index.js` 的
+> `LOCK_FILE` 修改为你的文件（默认 `E:/1523/priestess_lockscreen.webp`，或设置环境变量 `PRTS_LOCK_FILE`）。
+
+## 素材与重建（client.js 更新说明）
+
+**`lib/client.js` 是构建产物**，由 `lib/client.template.js` 生成——其中的视觉素材以
+base64 形式内嵌在三个占位符里：
+
+| 占位符 | 素材 | 来源 |
+|---|---|---|
+| `__SHEET_B64__` | 光标手形 sprite（33 帧 × 64px，1344×64 PNG） | Montag178/arknights_cursor（Unlicense） |
+| `__BOOT_SHEET_B64__` | 开机动画帧 sprite（33 帧 × 128px，6784×128 PNG） | Win7 开机动画包帧序列 |
+| `__PRIESTESS_B64__` | 普瑞赛斯立绘（256×256 PNG） | priestess-chat 项目 |
+
+**替换素材后重新生成 client.js**（PowerShell 示例）：
+
+```powershell
+$tpl = Get-Content lib/client.template.js -Raw
+$tpl = $tpl.Replace('__SHEET_B64__', [Convert]::ToBase64String([IO.File]::ReadAllBytes('path/to/hand-sheet.png')))
+$tpl = $tpl.Replace('__BOOT_SHEET_B64__', [Convert]::ToBase64String([IO.File]::ReadAllBytes('path/to/boot-sheet.png')))
+$tpl = $tpl.Replace('__PRIESTESS_B64__', [Convert]::ToBase64String([IO.File]::ReadAllBytes('path/to/priestess.png')))
+[IO.File]::WriteAllText('lib/client.js', $tpl)
+```
+
+- 素材尺寸/帧数变动时，同步修改 `client.template.js` 中对应的 CSS `background-size`、
+  帧循环常量（如 1344px / 6784px / 53 帧）
+- 锁屏壁纸 `priestess_lockscreen.webp` **不内嵌**（27MB 太大），由 host 路由流式加载；
+  换壁纸只需替换本地文件，无需重新构建
+- 修改后刷新浏览器即可生效；改 host 代码（`lib/index.js`）需重启 `dsh web`
 
 ## 桌宠余额
 
@@ -47,7 +74,7 @@ package.json           # dsh 插件声明（bundle patch + client entry）
 cordis.patch.yml       # 组合 patch（insert dsh-prts-suite）
 lib/index.js           # host：锁屏静态资源路由（/prts-assets/lockscreen.webp）
 lib/client.js          # client bundle（含全部内嵌素材 base64）
-lib/client.template.js # client 源码模板（素材占位符）
+lib/client.template.js # client 源码模板（素材占位符，默认构建来源）
 ```
 
 ## 许可与致谢
