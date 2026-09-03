@@ -1,0 +1,4 @@
+# PRTS suite skin bundle patch: inserts its public dsh.client entry into the web plugin roster.
+- insert:
+    - id: dsh-prts-suite
+      name: '@dsh-external/dsh-client-prts-suite'
